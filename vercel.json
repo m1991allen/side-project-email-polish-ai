@@ -1,0 +1,3 @@
+{
+  "installCommand": "(apt-get install -y libatomic1 || dnf install -y libatomic || yum install -y libatomic || true) && npm install"
+}
