@@ -1,14 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
-      "Bash(npm install:*)",
-      "Bash(npx tsc:*)",
-      "Bash(node -e \"const ai = require\\(''''ai''''\\); console.log\\(Object.keys\\(ai\\)\\)\")",
-      "Bash(ls node_modules/ai/react*)",
-      "Bash(node -e \"const {streamText} = require\\(''ai''\\); const result = {}; console.log\\(typeof streamText\\)\")",
-      "Bash(node -e \"const ai = require\\(''ai''\\); const keys = Object.keys\\(ai\\); keys.forEach\\(k => { if\\(k.toLowerCase\\(\\).includes\\(''use''\\) || k.toLowerCase\\(\\).includes\\(''hook''\\) || k.toLowerCase\\(\\).includes\\(''chat''\\)\\) console.log\\(k\\) }\\)\")",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''exports'''', {}\\), indent=2\\)\\)\")"
+      "WebFetch(domain:gigaai.studio)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Edit(/.claude/skills/nextjs-16-docs-first/**)",
+      "Edit(/.claude/skills/ai-sdk-streaming-route/**)",
+      "Edit(/.claude/skills/rate-limit-hardening/**)",
+      "Edit(/.claude/skills/email-prompt-tuning/**)",
+      "Edit(/.claude/skills/lemon-squeezy-wiring/**)"
     ]
   }
 }
