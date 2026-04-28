@@ -1,25 +1,25 @@
 ---
 name: rate-limit-hardening
-description: Replace the in-memory Map rate limiter in src/app/api/generate/route.ts with Upstash Redis. Use before any production deploy, when changing the limit, adding per-user limits, or adding a Pro-tier bypass.
+description: 把 src/app/api/generate/route.ts 中那個 in-memory Map 速率限制器,換成 Upstash Redis。在任何 production 部署之前、變更上限、加入 per-user 限制、或加入 Pro 層 bypass 時使用。
 ---
 
-## Overview
+## 概觀
 
-`src/app/api/generate/route.ts` currently uses a module-level `Map<string, { count, resetAt }>`. This is correct in `next dev` (single process) but incorrect the moment the route runs on more than one serverless instance: each instance holds its own Map, so the effective limit multiplies by the instance count. The comment `// For production, use Upstash Redis` already flags this.
+`src/app/api/generate/route.ts` 目前使用模組層級的 `Map<string, { count, resetAt }>`。在 `next dev`(單一 process)中是正確的,但只要該路由跑在多個 serverless instance 上,就立刻錯了:每個 instance 各自持有自己的 Map,實際上限會等於上限 × instance 數。原始碼裡的 `// For production, use Upstash Redis` 註解早就標記了這件事。
 
-## When to Use
+## 何時使用
 
-- Before the first production deploy.
-- When changing `RATE_LIMIT` or `RATE_WINDOW_MS`.
-- When moving from per-IP to per-user limiting.
-- When adding a Pro tier that bypasses the limit (see `lemon-squeezy-wiring`).
+- 第一次 production 部署之前。
+- 變更 `RATE_LIMIT` 或 `RATE_WINDOW_MS` 時。
+- 從 per-IP 改為 per-user 限制時。
+- 加入會 bypass 上限的 Pro 層時(見 `lemon-squeezy-wiring`)。
 
-## Process
+## 流程
 
-1. **Provision Upstash Redis** (free tier is enough). Capture `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
-2. **Document the env vars.** Add both to `.env.example` (blank) and `.env.local` (real values). Add to the deploy platform's env settings.
-3. **Install** `@upstash/ratelimit` and `@upstash/redis`.
-4. **Swap the limiter.** Replace `rateLimitMap`, `checkRateLimit`, and the inline check in `POST` with:
+1. **開通 Upstash Redis**(免費層就夠)。抓下 `UPSTASH_REDIS_REST_URL` 與 `UPSTASH_REDIS_REST_TOKEN`。
+2. **記錄環境變數。** 兩者都要加進 `.env.example`(留空)與 `.env.local`(真實值)。並在部署平台的環境設定中加入。
+3. **安裝** `@upstash/ratelimit` 與 `@upstash/redis`。
+4. **抽換限制器。** 用以下程式取代 `rateLimitMap`、`checkRateLimit`、以及 `POST` 中的 inline 檢查:
    ```ts
    const ratelimit = new Ratelimit({
      redis: Redis.fromEnv(),
@@ -27,34 +27,34 @@ description: Replace the in-memory Map rate limiter in src/app/api/generate/rout
    });
    const { success, remaining } = await ratelimit.limit(ip);
    ```
-   Keep the response contract identical — 429, JSON `{ error: "Rate limit exceeded. Please wait 1 minute." }`, header `X-RateLimit-Remaining`. The client and UI must not change.
-5. **Preserve IP extraction.** Keep the existing chain: `x-forwarded-for` (first entry, trimmed) → `x-real-ip` → `"unknown"`. Verify your deploy platform's forwarded-IP semantics before trusting these headers.
-6. **Pro bypass (if applicable).** If a Pro auth check exists, short-circuit the limiter before calling Redis — don't waste a Redis round-trip for paid users.
-7. **Delete dead code.** Remove the old `rateLimitMap`, `checkRateLimit`, and unused constants. `grep -r rateLimitMap src/` must return nothing.
+   保持回應契約完全相同 — 429、JSON `{ error: "Rate limit exceeded. Please wait 1 minute." }`、header `X-RateLimit-Remaining`。Client 與 UI 不可變動。
+5. **保留 IP 抽取邏輯。** 維持既有鏈條:`x-forwarded-for`(取第一筆,trim) → `x-real-ip` → `"unknown"`。在信任這些 header 之前,先確認部署平台的 forwarded-IP 語意。
+6. **Pro bypass(若適用)。** 若已存在 Pro 驗證檢查,要在呼叫 Redis 之前 short-circuit 掉限制器 — 不要為付費使用者浪費一次 Redis 往返。
+7. **刪除死碼。** 移除舊的 `rateLimitMap`、`checkRateLimit` 與不再使用的常數。`grep -r rateLimitMap src/` 必須沒有任何輸出。
 
-## Rationalizations
+## 常見的合理化藉口
 
-- "In-memory is fine for a soft launch" —
-  **Why:** the moment Vercel spins up a second Lambda (which happens under almost any load), your effective limit doubles. It's a correctness bug, not a scale concern.
-  **How to apply:** harden before first deploy, not after.
-- "I'll add Redis later" —
-  **Why:** "later" is after a user finds they can burst by hitting different edge regions.
-  **How to apply:** this is a deploy blocker, not a nice-to-have.
-- "Just raise `RATE_LIMIT`" —
-  **Why:** hides the bug, doesn't fix it. Multi-instance skew still exists.
+- 「軟啟動階段 in-memory 沒問題」 —
+  **為什麼:** Vercel 在幾乎任何負載下都會啟動第二個 Lambda,這一刻你的實質上限就翻倍。這是**正確性**的 bug,不是 scale 的考量。
+  **如何套用:** 在第一次部署前就硬化,而不是部署後。
+- 「我之後再加 Redis」 —
+  **為什麼:**「之後」就是某個使用者發現可以打不同 edge region 來爆量之後。
+  **如何套用:** 這是部署的 blocker,不是 nice-to-have。
+- 「把 `RATE_LIMIT` 拉高就好」 —
+  **為什麼:** 這是把 bug 蓋掉,不是修掉。Multi-instance 偏差仍然存在。
 
-## Red Flags
+## 警訊
 
-- Production deploy with the module-level `Map` still present.
-- Hardcoded Upstash credentials anywhere in source.
-- Dropping the `X-RateLimit-Remaining` header — keep the contract stable even if the client currently ignores it.
-- Changing the 429 JSON shape — `useEmailCompletion` reads `data.error`.
-- Calling `await ratelimit.limit(ip)` after starting `streamText`.
+- Production 部署時模組層級的 `Map` 還在。
+- 原始碼任何位置硬編碼 Upstash 憑證。
+- 拿掉 `X-RateLimit-Remaining` header — 即使 client 目前沒讀,也要保持契約穩定。
+- 改變 429 JSON 形狀 — `useEmailCompletion` 會讀 `data.error`。
+- 在 `streamText` 啟動之後才呼叫 `await ratelimit.limit(ip)`。
 
-## Verification
+## 驗證
 
-- [ ] 6 requests in one minute from one IP → 6th returns 429 with the expected JSON.
-- [ ] Restart the dev server; a previously limited IP is still limited until the sliding window expires. Proves Redis, not memory.
-- [ ] `grep -r "rateLimitMap\|checkRateLimit" src/` returns nothing.
-- [ ] `.env.example` documents both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
-- [ ] `npm run build` passes.
+- [ ] 同一 IP 在一分鐘內送出 6 個請求 → 第 6 個回 429 與預期的 JSON。
+- [ ] 重啟 dev server;一個之前被限流的 IP 在 sliding window 結束前仍然被限流。這證明用的是 Redis 而非記憶體。
+- [ ] `grep -r "rateLimitMap\|checkRateLimit" src/` 沒有任何輸出。
+- [ ] `.env.example` 文件化了 `UPSTASH_REDIS_REST_URL` 與 `UPSTASH_REDIS_REST_TOKEN`。
+- [ ] `npm run build` 通過。
