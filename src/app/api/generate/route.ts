@@ -83,7 +83,7 @@ Rules:
 - Do not add any explanation or commentary outside the email itself`;
 
   const result = streamText({
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-flash-latest"),
     system: systemPrompt,
     prompt: `Transform this Chinese draft into a professional English business email:\n\n${draft}`,
   });
