@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Email Polish — Turn drafts into professional business emails",
+  title: "side-project-email-polish-ai — Turn drafts into professional business emails",
   description:
     "Transform your rough Chinese drafts into polished, professional English business emails instantly with AI.",
 };

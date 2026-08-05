@@ -1,17 +1,29 @@
+# side-project-email-polish-ai
+
 這是一個由 [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app) 建立的 [Next.js](https://nextjs.org) 專案。
 
 ## 開始使用
 
-首先,啟動開發伺服器:
+需求：Node.js 20 以上。
+
+```bash
+git clone https://github.com/m1991allen/side-project-email-polish-ai.git
+cd side-project-email-polish-ai
+npm install
+```
+
+接著設定環境變數。潤稿 API 需要 Google Gemini 金鑰，缺少時 `/api/generate` 會回 500：
+
+```bash
+cp .env.example .env.local
+```
+
+編輯 `.env.local`，把 `GEMINI_API_KEY` 填入你在 [Google AI Studio](https://aistudio.google.com/apikey) 取得的金鑰。
+
+最後啟動開發伺服器：
 
 ```bash
 npm run dev
-# 或
-yarn dev
-# 或
-pnpm dev
-# 或
-bun dev
 ```
 
 用瀏覽器打開 [http://localhost:3000](http://localhost:3000) 即可看到結果。
